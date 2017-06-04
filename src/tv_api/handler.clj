@@ -3,7 +3,8 @@
     [compojure.api.sweet :refer :all]
     [ring.util.http-response :refer :all]
     [schema.core :as s]
-    [tv-api.db :as db]))
+    [tv-api.db :as db]
+    [tv-lib.core :as lib]))
 
 (def Rating (s/constrained s/Int #(< 0 % 10)))
 
@@ -19,7 +20,12 @@
    :poster (describe s/Str "Link to the poster")
    :site_rating (describe Rating "Site Rating of the show from 1 to 10 stars")
    :rating (describe AgeRating "Age rating recomendation for the show")
+   :is_family (describe s/Bool "Indicates whether the show is a family show")
    :origin (describe Origin "Country where the show is from")})
+
+(defn- add-family-check
+  [show]
+  (assoc show :is_family (lib/family-show? show)))
 
 (def app
   (api
@@ -36,6 +42,9 @@
       (GET "/tv-shows" []
         :return {:shows [TvShow]}
         :summary "Returns the list of tv shows"
-        (-> (ok {:shows db/tv-shows})
-            (header "Access-Control-Allow-Origin" "*"))))))
+        (as-> db/tv-shows s
+          (map add-family-check s)
+          (assoc {} :shows s)
+          (ok s)
+          (header s "Access-Control-Allow-Origin" "*"))))))
 
